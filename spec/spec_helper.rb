@@ -1,6 +1,6 @@
 require 'active_support/all'
 
-require_relative '../lib/typero'
+require_relative '../lib/schedulero'
 
 # basic config
 RSpec.configure do |config|

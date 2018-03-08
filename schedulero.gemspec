@@ -6,7 +6,7 @@ Gem::Specification.new 'schedulero', version do |s|
   s.authors     = ["Dino Reic"]
   s.email       = 'reic.dino@gmail.com'
   s.files       = Dir['./lib/**/*.rb']+['./.version']
-  s.homepage    = 'https://github.com/dux/typero'
+  s.homepage    = 'https://github.com/dux/schedulero'
   s.license     = 'MIT'
 
   s.add_runtime_dependency 'as-duration', '~> 0'
