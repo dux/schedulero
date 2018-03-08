@@ -12,17 +12,13 @@ Runs tasks in intervals
 ```
 require 'schedulero'
 
-def r
-  rand
-end
-
 # s = Schedulero.new state_file: ..., log_file: ...
 s = Schedulero.new
 
 s.run do
   # every 5 seconds
   every 'Frequent job', 5 do
-    puts '5 seconds - %s' % r
+    puts '5 seconds passed'
   end
 
   # every day
@@ -30,8 +26,10 @@ s.run do
     puts 'day job ...'
   end
 
-  # at specfic hour of the day, midnight and 6 PM
+  # at specfic hour of the day
   # will run only once per hour
+  # at 'At times', 1 do # at 1AM
+  # midnight and 6 PM
   at 'At times', [0, 18] do
     p 'BINGO'
   end
@@ -40,6 +38,8 @@ end
 
 ### Instalation
 
+`gem install schedulero`
+
 Run jobs via cron every minute/hour. Jobs will run if needed.
 
 `1 * * * * bin/bash -l -c 'ruby /users/me/jobs.rb'`
@@ -47,4 +47,4 @@ Run jobs via cron every minute/hour. Jobs will run if needed.
 
 ### Other info
 
-* logs standard exceptions to log
+* logs standard exceptions and runner info to log
