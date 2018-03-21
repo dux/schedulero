@@ -12,19 +12,21 @@ class Schedulero
 
   attr_reader :tasks, :logger
 
-  def initialize state_file: nil, log_file: true
-    init_log   log_file
-    init_state state_file
-
+  def initialize state_file: nil, log_file: true, silent: false
+    @silent  = silent
     @tasks   = {}
     @running = {}
     @count   = 0
+
+    init_log   log_file
+    init_state state_file
+
   end
 
   def init_state state_file
     # state file
     state_file ||= "./tmp/schedulero.json"
-    puts 'State file: %s' % state_file
+    show 'State file: %s' % state_file
 
     @state_file = Pathname.new state_file
     @state_file.write '{}' unless @state_file.exist?
@@ -32,22 +34,27 @@ class Schedulero
 
   def init_log log_file
     # log file
-    log_file = case log_file
+    @log_file = case log_file
       when String
         log_file
       when false
         nil
       else
-        "./log/schedulero.log'"
+        "./log/schedulero.log"
     end
 
-    puts 'Log file  : %s' % log_file
+    show 'Log file  : %s' % @log_file
 
-    @logger = Logger.new log_file
+    @logger = Logger.new @log_file
     @logger.formatter = proc do |severity, datetime, progname, msg|
       severity = severity == 'INFO' ? '' : "(#{severity}) "
       "[#{datetime.strftime('%Y-%m-%d %H:%M:%S')}]: #{severity}#{msg}\n"
     end
+  end
+
+  def show text
+    return if @silent
+    puts 'Schedulero: %s' % text
   end
 
   # add task
@@ -65,7 +72,7 @@ class Schedulero
   def run_forever interval: 3
     Thread.new do
       loop do
-        puts 'looping ...'
+        show 'looping ...'
         run
         sleep interval
       end
@@ -82,7 +89,7 @@ class Schedulero
 
     # if another process is controlling state, exit
     if state['_pid'] != Process.pid && diff < 10
-      puts "Another process [#{state['_pid']}] is controlling state before #{diff} sec, skipping. I am (#{Process.pid})".red
+      show "Another process [#{state['_pid']}] is controlling state before #{diff} sec, skipping. I am (#{Process.pid})".red
       return
     end
 
@@ -108,7 +115,7 @@ class Schedulero
           state[name] = now
           safe_run block
         else
-          puts 'skipping "%s" for %s' % [name, humanize_seconds(diff)]
+          show 'skipping "%s" for %s' % [name, humanize_seconds(diff)]
         end
       end
     end
@@ -123,7 +130,7 @@ class Schedulero
   def safe_run block
     name = block[:name]
 
-    puts 'Running "%s"' % name.green
+    show 'Running "%s"' % name.green
     @logger.info 'Run: %s' % name
 
     if block[:running]
@@ -153,7 +160,7 @@ class Schedulero
       name
     end
 
-    puts msg.red
+    show msg.red
 
     @logger.error(msg)
   end

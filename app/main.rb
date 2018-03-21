@@ -19,14 +19,13 @@ $s.every('Not so frequent job', 15) {
   puts '... every 15 seconds'
 }
 
-$s.at('U 8 sati', [8, 20]) {
-  puts '... U OSAM SATI'.yellow
+$s.at('At 8 o clock', [8, 20]) {
+  puts '... it is 8 o clock'.yellow
 }
 
 sleep 10_000
 
 class ScheduleroApp < Sinatra::Base
-
   get '/' do
     content_type :text
 

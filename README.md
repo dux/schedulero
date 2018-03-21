@@ -48,4 +48,6 @@ Run jobs via cron every minute/hour. Jobs will run if needed.
 
 ### Other info
 
+* runs tasks in separate threads
+* if the tasks are running before the start, they will be killed
 * logs standard exceptions and runner info to log

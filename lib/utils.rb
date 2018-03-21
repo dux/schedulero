@@ -17,12 +17,14 @@ class Schedulero
       data = ['Tasks:']
 
       for name, task in tasks
-        data.push '- %s, every %s' % [name, humanize_seconds(task[:interval])]
+        at = task[:at] ? "at #{task[:at]}" : "every #{humanize_seconds(task[:interval])}"
+
+        data.push '- %s, %s' % [name, at]
       end
 
       data.push ['','###', '']
 
-      data.push `tail -#{lines} ./log/schedulero.log`.split($/).reverse
+      data.push `tail -#{lines} #{@log_file}`.split($/).reverse if @log_file
 
       data.join($/)
     end
