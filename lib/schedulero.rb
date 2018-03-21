@@ -3,110 +3,138 @@ require 'json'
 require 'logger'
 require 'colorize'
 require 'as-duration'
+require 'pp'
+
+require_relative './utils'
 
 class Schedulero
-  def initialize state_file: nil, log_file: true
+  include ScheduleroUtils
 
+  attr_reader :tasks, :logger
+
+  def initialize state_file: nil, log_file: true
+    init_log   log_file
+    init_state state_file
+
+    @tasks   = {}
+    @running = {}
+    @count   = 0
+  end
+
+  def init_state state_file
+    # state file
+    state_file ||= "./tmp/schedulero.json"
+    puts 'State file: %s' % state_file
+
+    @state_file = Pathname.new state_file
+    @state_file.write '{}' unless @state_file.exist?
+  end
+
+  def init_log log_file
     # log file
     log_file = case log_file
       when String
         log_file
       when true
-        './log/schedulero.log'
+        "./log/schedulero.log'"
       when false
         nil
     end
 
+    puts 'Log file  : %s' % log_file
+
     @logger = Logger.new log_file
-    @logger.datetime_format = "%Y-%m-%d %H:%M:%S"
-
-    # state file
-    unless state_file
-      state_file = 'schedulero.json'
-      state_file = Dir.exists?('./tmp') ? "./tmp/#{state_file}" : state_file
-    end
-
-    @state_file = Pathname.new state_file
-
-    if @state_file.exist?
-      @state = JSON.load @state_file.read
-    else
-      @state = {}
+    @logger.formatter = proc do |severity, datetime, progname, msg|
+      severity = severity == 'INFO' ? '' : "(#{severity}) "
+      "[#{datetime.strftime('%Y-%m-%d %H:%M:%S')}]: #{severity}#{msg}\n"
     end
   end
 
-  def run &block
-    @logger.info 'running...'
-
-    instance_exec &block
-
-    @state_file.write @state.to_json
+  # add task
+  def task name, seconds, proc=nil, &block
+    proc ||= block
+    @tasks[name] = { interval: seconds , func: proc, name: name }
   end
 
-  def every name, seconds, &block
-    @state[name] ||= 0
+  def run_forever interval: 3
+    Thread.new do
+      loop do
+        puts 'looping ...'
+        run
+        sleep interval
+      end
+    end
+  end
 
-    now   = Time.now.to_i
-    diff  = (@state[name] + seconds.to_i) - now
+  def run
+    state = JSON.load @state_file.read
 
-    if diff < 0
-      puts 'running "%s"' % name.green
+    state['_pid']      ||= Process.pid
+    state['_last_run'] ||= Time.now.to_i
+    diff = Time.now.to_i - state['_last_run']
 
-      @state[name] = now
+    # if another process is controlling state, exit
+    if state['_pid'] != Process.pid && diff < 10
+      puts "Another process [#{state['_pid']}] is controlling state before #{diff} sec, skipping. I am (#{Process.pid})".red
+      return
+    end
+
+    for name, block in @tasks
+      seconds = block[:interval]
+      now     = Time.now.to_i
+      diff    = (state[name].to_i + seconds.to_i) - now
+
+      if diff < 0
+        puts 'running "%s"' % name.green
+
+        state[name] = now
+
+        @logger.info 'Run: %s' % name
+
+        safe_run block
+      else
+        puts 'skipping "%s" for %s' % [name, humanize_seconds(diff)]
+      end
+    end
+
+    state['_last_run'] = Time.now.to_i
+    state['_pid']      = Process.pid
+
+    @state_file.write state.to_json
+  end
+
+  # run in rescue mode, kill if still running
+  def safe_run block
+    if block[:running]
+      log_errror "Task [#{block[:name]}] is still running, killing..."
+      Thread.kill(block[:running])
+    end
+
+    thread = Thread.start(block) do |b|
+      block[:running] = thread
 
       begin
-        @logger.info 'Run: %s' % name
-        yield
+        @count += 1
+        b[:func].call @count
       rescue
-        log_errror name
+        log_errror b[:name]
       end
-    else
-      puts 'skipping "%s" for %s' % [name, humanize_seconds(diff)]
+
+      b[:running] = false
     end
   end
 
-  def at name, hours, &block
-    @state[name] ||= 0
-
-    hour_now = Time.now.hour
-    hours    = [hours] unless hours.class == Array
-
-    if hours.include?(hour_now) && (Time.now.to_i - @state[name] > 3700)
-      puts 'running "%s"' % name.green
-
-      @state[name] = Time.now.to_i
-
-      begin
-        @logger.info 'Run: %s' % name
-        yield
-      rescue
-        log_errror name
-      end
-    else
-      puts 'skipping "%s" at %d, running in %s' % [name, hour_now, hours]
-    end
-  end
-
+  # show and log error
   def log_errror name
-    msg  = '%s: %s (%s)' % [name, $!.message, $!.class]
+    msg  = if $!
+      '%s: %s (%s)' % [name, $!.message, $!.class]
+    else
+      name
+    end
+
     puts msg.red
 
-    Dir.mkdir('./log') unless Dir.exist?('./log')
-
     @logger.error(msg)
-  end
-
-  def humanize_seconds secs
-    return '-' unless secs
-
-    secs = secs.to_i
-
-    [[60, :sec], [60, :min], [24, :h], [356, :days], [1000, :years]].map{ |count, name|
-      if secs > 0
-        secs, n = secs.divmod(count)
-        "#{n.to_i} #{name}"
-      end
-    }.compact.reverse.slice(0,2).join(' ')
   end
 end
 
