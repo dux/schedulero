@@ -8,7 +8,7 @@ require 'pp'
 require_relative './utils'
 
 class Schedulero
-  include ScheduleroUtils
+  include Schedulero::Utils
 
   attr_reader :tasks, :logger
 
@@ -66,6 +66,7 @@ class Schedulero
     end
   end
 
+  # run ocece all tasks safe
   def run
     state = JSON.load @state_file.read
 
