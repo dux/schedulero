@@ -35,10 +35,10 @@ class Schedulero
     log_file = case log_file
       when String
         log_file
-      when true
-        "./log/schedulero.log'"
       when false
         nil
+      else
+        "./log/schedulero.log'"
     end
 
     puts 'Log file  : %s' % log_file
@@ -51,9 +51,15 @@ class Schedulero
   end
 
   # add task
-  def task name, seconds, proc=nil, &block
+  def every name, seconds, proc=nil, &block
     proc ||= block
     @tasks[name] = { interval: seconds , func: proc, name: name }
+  end
+
+  # run task at specific hours
+  def at name, hours, proc=nil, &block
+    proc ||= block
+    @tasks[name] = { at: hours , func: proc, name: name }
   end
 
   def run_forever interval: 3
@@ -66,7 +72,7 @@ class Schedulero
     end
   end
 
-  # run ocece all tasks safe
+  # run all tasks once, safe
   def run
     state = JSON.load @state_file.read
 
@@ -81,20 +87,29 @@ class Schedulero
     end
 
     for name, block in @tasks
-      seconds = block[:interval]
-      now     = Time.now.to_i
-      diff    = (state[name].to_i + seconds.to_i) - now
+      state[name] ||= 0
+      now           = Time.now.to_i
 
-      if diff < 0
-        puts 'running "%s"' % name.green
+      if block[:at]
+        # run at specific times
+        hour_now = Time.now.hour
+        hours    = block[:at].class == Array ? block[:at] : [block[:at]]
 
-        state[name] = now
-
-        @logger.info 'Run: %s' % name
-
-        safe_run block
+        if hours.include?(hour_now) && (Time.now.to_i - state[name] > 3700)
+          state[name] = now
+          safe_run block
+        end
       else
-        puts 'skipping "%s" for %s' % [name, humanize_seconds(diff)]
+        # run in intervals
+        seconds = block[:interval]
+        diff    = (state[name].to_i + seconds.to_i) - now
+
+        if diff < 0
+          state[name] = now
+          safe_run block
+        else
+          puts 'skipping "%s" for %s' % [name, humanize_seconds(diff)]
+        end
       end
     end
 
@@ -106,6 +121,11 @@ class Schedulero
 
   # run in rescue mode, kill if still running
   def safe_run block
+    name = block[:name]
+
+    puts 'Running "%s"' % name.green
+    @logger.info 'Run: %s' % name
+
     if block[:running]
       log_errror "Task [#{block[:name]}] is still running, killing..."
       Thread.kill(block[:running])

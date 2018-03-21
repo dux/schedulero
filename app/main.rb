@@ -4,7 +4,7 @@ require_relative '../lib/schedulero'
 $s = Schedulero.new state_file: './tmp/s.json', log_file: './tmp/s.log'
 $s.run_forever
 
-$s.task 'Frequent job', 5 do |cnt|
+$s.every 'Frequent job', 5 do |cnt|
   r = (rand() * 10).to_i + 10
 
   puts "... Sleep task #{r} sec".blue
@@ -15,9 +15,12 @@ $s.task 'Frequent job', 5 do |cnt|
   end
 end
 
-$s.task('Not so frequent job', 15) {
+$s.every('Not so frequent job', 15) {
   puts '... every 15 seconds'
-  puts $s.logger ? 1 : 0
+}
+
+$s.at('U 8 sati', [8, 20]) {
+  puts '... U OSAM SATI'.yellow
 }
 
 sleep 10_000
