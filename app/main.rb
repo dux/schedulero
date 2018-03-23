@@ -23,7 +23,10 @@ $s.at('At 8 o clock', [8, 20]) {
   puts '... it is 8 o clock'.yellow
 }
 
-sleep 10_000
+1.upto(1000) do
+  sleep 3
+  $s.run_forever
+end
 
 class ScheduleroApp < Sinatra::Base
   get '/' do

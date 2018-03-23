@@ -13,7 +13,7 @@ class Schedulero
       }.compact.reverse.slice(0,2).join(' ')
     end
 
-    def quick_overview lines: 100
+    def quick_overview lines: 200
       data = ['Tasks:']
 
       for name, task in tasks

@@ -14,7 +14,7 @@ Runs tasks in intervals
 ```
 require 'schedulero'
 
-# s = Schedulero.new state_file: "./tmp/schedulero.json", log_file: "./log/schedulero.json"
+# s = Schedulero.new state_file: "./tmp/schedulero.json", log_file: "./log/schedulero.json", silent: true, state: DRunnerbState
 s = Schedulero.new
 s.every 'Frequent job', 5 do
   puts '5 seconds passed'
